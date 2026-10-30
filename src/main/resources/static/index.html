@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Memories</title>
+  <style>
+    :root { color-scheme: light; font: 16px/1.5 system-ui, sans-serif; color: #202124; background: #f5f6f8; }
+    body { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+    h1 { margin-bottom: .25rem; }
+    .muted { color: #62666c; }
+    form, .toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin: 1.5rem 0; }
+    input, button { font: inherit; padding: .6rem .8rem; border: 1px solid #c9cdd3; border-radius: .5rem; }
+    button { cursor: pointer; background: #fff; }
+    button[type="submit"] { color: #fff; background: #315bd6; border-color: #315bd6; }
+    #gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
+    article { overflow: hidden; background: white; border: 1px solid #e0e2e6; border-radius: .75rem; }
+    article img { display: block; width: 100%; height: 210px; object-fit: cover; background: #eceef1; }
+    .details { padding: .85rem; }
+    .details h2 { overflow-wrap: anywhere; font-size: 1rem; margin: 0 0 .4rem; }
+    .details h2 a { color: inherit; }
+    .details p { font-size: .875rem; margin: .25rem 0; }
+    .tag-editor { display: flex; margin-top: .75rem; }
+    .tag-editor input { flex: 1; min-width: 0; }
+    #message { min-height: 1.5em; color: #a32020; }
+  </style>
+</head>
+<body>
+  <h1>Memories</h1>
+  <p class="muted">Your self-hosted photo library</p>
+  <form id="upload-form">
+    <input id="file" name="file" type="file" required>
+    <input id="tags" name="tags" type="text" placeholder="Tags, separated by commas">
+    <button type="submit">Upload</button>
+  </form>
+  <div class="toolbar">
+    <input id="filter" type="search" placeholder="Filter by tag">
+    <button id="clear-filter" type="button">Show all</button>
+  </div>
+  <p id="message" role="status"></p>
+  <main id="gallery"></main>
+  <script>
+    const gallery = document.querySelector("#gallery");
+    const message = document.querySelector("#message");
+
+    async function loadPhotos() {
+      const tag = document.querySelector("#filter").value.trim();
+      const url = tag ? `/api/photos?tag=${encodeURIComponent(tag)}` : "/api/photos";
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Could not load photos");
+      render(await response.json());
+    }
+
+    function render(photos) {
+      gallery.replaceChildren();
+      for (const photo of photos) {
+        const card = document.createElement("article");
+        if (photo.mediaType.startsWith("image/")) {
+          const image = document.createElement("img");
+          image.src = `/api/photos/${encodeURIComponent(photo.id)}/file`;
+          image.alt = photo.filename;
+          card.append(image);
+        }
+
+        const details = document.createElement("div");
+        details.className = "details";
+        const title = document.createElement("h2");
+        const fileLink = document.createElement("a");
+        fileLink.href = `/api/photos/${encodeURIComponent(photo.id)}/file`;
+        fileLink.textContent = photo.filename;
+        title.append(fileLink);
+        const metadata = document.createElement("p");
+        const date = photo.capturedAt ? new Date(photo.capturedAt).toLocaleString() : "Date unknown";
+        const location = photo.latitude == null ? "" : ` · ${photo.latitude.toFixed(4)}, ${photo.longitude.toFixed(4)}`;
+        metadata.textContent = `${date}${location}`;
+        const camera = document.createElement("p");
+        camera.className = "muted";
+        camera.textContent = [photo.cameraMake, photo.cameraModel].filter(Boolean).join(" ") || photo.mediaType;
+        const tags = document.createElement("input");
+        tags.value = photo.tags.join(", ");
+        tags.setAttribute("aria-label", `Tags for ${photo.filename}`);
+        const save = document.createElement("button");
+        save.type = "button";
+        save.textContent = "Save tags";
+        save.addEventListener("click", async () => {
+          const result = await fetch(`/api/photos/${encodeURIComponent(photo.id)}/tags`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tags: tags.value.split(",") })
+          });
+          if (!result.ok) {
+            message.textContent = "Could not update tags";
+            return;
+          }
+          message.textContent = "Tags updated";
+          await loadPhotos();
+        });
+        const editor = document.createElement("div");
+        editor.className = "tag-editor";
+        editor.append(tags, save);
+        details.append(title, metadata, camera, editor);
+        card.append(details);
+        gallery.append(card);
+      }
+      if (photos.length === 0) message.textContent = "No photos yet.";
+    }
+
+    document.querySelector("#upload-form").addEventListener("submit", async event => {
+      event.preventDefault();
+      const selectedFile = document.querySelector("#file").files[0];
+      if (!selectedFile) return;
+      const form = new FormData();
+      form.append("file", selectedFile);
+      form.append("tags", document.querySelector("#tags").value);
+      message.textContent = "Uploading…";
+      const response = await fetch("/api/photos", { method: "POST", body: form });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        message.textContent = error.error || "Upload failed";
+        return;
+      }
+      document.querySelector("#file").value = "";
+      document.querySelector("#tags").value = "";
+      message.textContent = "Upload complete";
+      await loadPhotos();
+    });
+
+    document.querySelector("#filter").addEventListener("change", () => loadPhotos().catch(() => {
+      message.textContent = "Could not load photos";
+    }));
+    document.querySelector("#clear-filter").addEventListener("click", () => {
+      document.querySelector("#filter").value = "";
+      loadPhotos().catch(() => { message.textContent = "Could not load photos"; });
+    });
+    loadPhotos().catch(() => { message.textContent = "Could not load photos"; });
+  </script>
+</body>
+</html>
