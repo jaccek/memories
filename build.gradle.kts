@@ -33,7 +33,7 @@ kotlin {
 }
 
 application {
-    mainClass.set("com.github.jaccek.MainKt")
+    mainClass.set("com.github.jaccek.infrastructure.MainKt")
 }
 
 tasks.test {

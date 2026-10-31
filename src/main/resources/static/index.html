@@ -47,7 +47,9 @@
       const tag = document.querySelector("#filter").value.trim();
       const url = tag ? `/api/photos?tag=${encodeURIComponent(tag)}` : "/api/photos";
       const response = await fetch(url);
-      if (!response.ok) throw new Error("Could not load photos");
+      if (!response.ok) {
+        throw new Error("Could not load photos");
+      }
       render(await response.json());
     }
 
@@ -102,13 +104,17 @@
         card.append(details);
         gallery.append(card);
       }
-      if (photos.length === 0) message.textContent = "No photos yet.";
+      if (photos.length === 0) {
+        message.textContent = "No photos yet.";
+      }
     }
 
     document.querySelector("#upload-form").addEventListener("submit", async event => {
       event.preventDefault();
       const selectedFile = document.querySelector("#file").files[0];
-      if (!selectedFile) return;
+      if (!selectedFile) {
+        return;
+      }
       const form = new FormData();
       form.append("file", selectedFile);
       form.append("tags", document.querySelector("#tags").value);

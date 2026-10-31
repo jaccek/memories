@@ -1,4 +1,7 @@
-package com.github.jaccek
+package com.github.jaccek.infrastructure
+
+import com.github.jaccek.domain.Photo
+import com.github.jaccek.domain.UpdateTagsRequest
 
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -36,7 +39,6 @@ class PhotoServiceTest {
             setBody(
                 MultiPartFormDataContent(
                     formData {
-                        append("tags", "Family, summer")
                         append(
                             "file",
                             originalBytes,
@@ -51,6 +53,7 @@ class PhotoServiceTest {
                                 )
                             },
                         )
+                        append("tags", "Family, summer")
                     },
                 ),
             )

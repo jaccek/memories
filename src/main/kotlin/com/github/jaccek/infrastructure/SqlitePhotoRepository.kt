@@ -1,12 +1,15 @@
-package com.github.jaccek
+package com.github.jaccek.infrastructure
 
+import com.github.jaccek.application.PhotoNotFoundException
+import com.github.jaccek.application.PhotoRepository
+import com.github.jaccek.domain.Photo
 import java.nio.file.Files
 import java.nio.file.Path
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.ResultSet
 
-class PhotoRepository(databaseFile: Path) {
+class SqlitePhotoRepository(databaseFile: Path) : PhotoRepository {
     private val jdbcUrl: String
 
     init {
@@ -31,13 +34,7 @@ class PhotoRepository(databaseFile: Path) {
                     )
                     """.trimIndent(),
                 )
-                statement.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS tags (
-                        name TEXT PRIMARY KEY
-                    )
-                    """.trimIndent(),
-                )
+                statement.execute("CREATE TABLE IF NOT EXISTS tags (name TEXT PRIMARY KEY)")
                 statement.execute(
                     """
                     CREATE TABLE IF NOT EXISTS photo_tags (
@@ -53,7 +50,7 @@ class PhotoRepository(databaseFile: Path) {
         }
     }
 
-    fun insertPhoto(photo: Photo) {
+    override fun insertPhoto(photo: Photo) {
         connect().use { connection ->
             connection.autoCommit = false
             try {
@@ -86,7 +83,7 @@ class PhotoRepository(databaseFile: Path) {
         }
     }
 
-    fun listPhotos(tag: String? = null): List<Photo> = connect().use { connection ->
+    override fun listPhotos(tag: String?): List<Photo> = connect().use { connection ->
         val sql = if (tag == null) {
             "SELECT * FROM photos ORDER BY uploaded_at DESC"
         } else {
@@ -100,7 +97,9 @@ class PhotoRepository(databaseFile: Path) {
             """.trimIndent()
         }
         connection.prepareStatement(sql).use { statement ->
-            if (tag != null) statement.setString(1, tag)
+            if (tag != null) {
+                statement.setString(1, tag)
+            }
             statement.executeQuery().use { results ->
                 buildList {
                     while (results.next()) add(results.toPhoto(connection))
@@ -109,23 +108,27 @@ class PhotoRepository(databaseFile: Path) {
         }
     }
 
-    fun getPhoto(id: String): Photo = connect().use { connection ->
+    override fun getPhoto(id: String): Photo = connect().use { connection ->
         connection.prepareStatement("SELECT * FROM photos WHERE id = ?").use { statement ->
             statement.setString(1, id)
             statement.executeQuery().use { results ->
-                if (!results.next()) throw PhotoNotFoundException()
+                if (!results.next()) {
+                    throw PhotoNotFoundException()
+                }
                 results.toPhoto(connection)
             }
         }
     }
 
-    fun replaceTags(id: String, tags: List<String>): Photo = connect().use { connection ->
+    override fun replaceTags(id: String, tags: List<String>): Photo = connect().use { connection ->
         connection.autoCommit = false
         try {
             connection.prepareStatement("SELECT id FROM photos WHERE id = ?").use { statement ->
                 statement.setString(1, id)
                 statement.executeQuery().use { results ->
-                    if (!results.next()) throw PhotoNotFoundException()
+                    if (!results.next()) {
+                        throw PhotoNotFoundException()
+                    }
                 }
             }
             setTags(connection, id, tags)
@@ -137,13 +140,15 @@ class PhotoRepository(databaseFile: Path) {
         }
     }
 
-    fun deletePhoto(id: String): Photo = connect().use { connection ->
+    override fun deletePhoto(id: String): Photo = connect().use { connection ->
         connection.autoCommit = false
         try {
             val photo = connection.prepareStatement("SELECT * FROM photos WHERE id = ?").use { statement ->
                 statement.setString(1, id)
                 statement.executeQuery().use { results ->
-                    if (!results.next()) throw PhotoNotFoundException()
+                    if (!results.next()) {
+                        throw PhotoNotFoundException()
+                    }
                     results.toPhoto(connection)
                 }
             }

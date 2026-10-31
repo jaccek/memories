@@ -4,6 +4,14 @@ Memories is a self-hosted photo and file library. The Ktor service stores origin
 
 Authentication is intentionally not included yet. Do not expose this service to an untrusted network until authentication and authorization have been added.
 
+## Code structure
+
+The Kotlin source is organized into three packages:
+
+- `domain` contains photo metadata and API data structures.
+- `application` contains photo use cases and the repository/metadata-reader interfaces those use cases depend on.
+- `infrastructure` contains Ktor routing and the SQLite/EXIF adapters that implement those interfaces.
+
 ## Run locally
 
 Requires JDK 21.
