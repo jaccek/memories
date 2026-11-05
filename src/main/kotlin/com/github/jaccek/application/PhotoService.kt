@@ -46,23 +46,18 @@ class PhotoService(
         }
     }
 
-    fun savePhoto(
-        upload: StagedPhotoUpload,
-        filename: String?,
-        mediaType: String?,
-        tags: List<String>,
-    ): Photo {
+    fun savePhoto(request: UploadPhotoRequest): Photo {
         try {
-            val normalizedTags = normalizeTags(tags)
+            val normalizedTags = normalizeTags(request.tags)
             val id = UUID.randomUUID().toString()
             val storedFile = photoDirectory.resolve(id)
             try {
-                val metadata = metadataReader.read(upload.path)
-                Files.move(upload.path, storedFile, StandardCopyOption.ATOMIC_MOVE)
+                val metadata = metadataReader.read(request.upload.path)
+                Files.move(request.upload.path, storedFile, StandardCopyOption.ATOMIC_MOVE)
                 val photo = Photo(
                     id = id,
-                    filename = safeFilename(filename),
-                    mediaType = mediaType ?: "application/octet-stream",
+                    filename = safeFilename(request.filename),
+                    mediaType = request.mediaType ?: "application/octet-stream",
                     size = Files.size(storedFile),
                     uploadedAt = Instant.now().toString(),
                     capturedAt = metadata.capturedAt,
@@ -79,7 +74,7 @@ class PhotoService(
                 throw exception
             }
         } finally {
-            upload.close()
+            request.upload.close()
         }
     }
 
@@ -144,6 +139,13 @@ class StagedPhotoUpload internal constructor(internal val path: Path) : AutoClos
         Files.deleteIfExists(path)
     }
 }
+
+data class UploadPhotoRequest(
+    val upload: StagedPhotoUpload,
+    val filename: String?,
+    val mediaType: String?,
+    val tags: List<String>,
+)
 
 class InvalidRequestException(message: String) : RuntimeException(message)
 class PhotoNotFoundException : RuntimeException()
