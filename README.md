@@ -1,5 +1,7 @@
 # Memories
 
+This repository is a Gradle multi-project workspace. The Ktor web service lives in `api/`; additional applications, such as a future Compose Multiplatform app, can be added as sibling subprojects.
+
 Memories is a self-hosted photo and file library. The Ktor service stores original files on disk and keeps searchable tags and extracted image metadata in SQLite. It includes a small browser gallery and a JSON API intended to be reusable by a future mobile app.
 
 Authentication is intentionally not included yet. Do not expose this service to an untrusted network until authentication and authorization have been added.
@@ -17,7 +19,7 @@ The Kotlin source is organized into three packages:
 Requires JDK 21.
 
 ```sh
-./gradlew run
+./gradlew :api:run
 ```
 
 Open <http://localhost:8080>. The default data directory is `./data`; set `MEMORIES_DATA_DIR` to use another directory and `PORT` to change the listening port. The service binds to `0.0.0.0` for self-hosting.
